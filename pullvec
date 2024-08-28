@@ -1,0 +1,66 @@
+-- Load Vape UI Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
+
+-- Create Main Window
+local win = lib:Window("Pull Vector", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+
+-- Create a New Tab
+local tab = win:Tab("Pull Vector")
+
+-- Initialize Services
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+
+-- Initialize Variables
+local pullVectorEnabled = false
+local pullStrength = 50 -- Default pull strength
+local pullRange = 30 -- Default range
+local eventConnection
+
+-- Function to Pull Player Towards Ball
+local function applyPullVector()
+    if not pullVectorEnabled then return end
+
+    -- Get the LocalPlayer and their character
+    local player = Players.LocalPlayer
+    local character = player.Character or player.CharacterAdded:Wait()
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+
+    -- Connect to the event when the ball is added
+    eventConnection = Workspace.ChildAdded:Connect(function(child)
+        if child.Name == "Football" and child:IsA("BasePart") and pullVectorEnabled then
+            -- Calculate distance between player and ball
+            local ballPosition = child.Position
+            local playerPosition = humanoidRootPart.Position
+            local direction = (ballPosition - playerPosition).unit
+            local distance = (ballPosition - playerPosition).magnitude
+
+            -- Apply force if within range
+            if distance < pullRange then
+                local forceMagnitude = pullStrength / distance -- Adjust force based on distance
+                humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * forceMagnitude
+            end
+        end
+    end)
+end
+
+-- Add UI Elements
+tab:Toggle("Enable Pull Vector", false, function(state)
+    pullVectorEnabled = state
+
+    if pullVectorEnabled then
+        applyPullVector()
+    else
+        if eventConnection then
+            eventConnection:Disconnect()
+        end
+    end
+end)
+
+tab:Slider("Pull Strength", 1, 100, 50, function(value)
+    pullStrength = value
+end)
+
+tab:Slider("Pull Range", 10, 100, 30, function(value)
+    pullRange = value
+end)
