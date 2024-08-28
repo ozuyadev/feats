@@ -10,97 +10,81 @@ local tab = win:Tab("Pull Vector")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 -- Initialize Variables
 local pullVectorEnabled = false
-local pullRange = 10
+local range = 10
 local pullStrength = 10
-local pulling = false
-local targetBall = nil
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+local mouse = player:GetMouse()
+local isMobile = UserInputService.TouchEnabled
 
--- Function to Pull Player to Ball
-local function pullPlayerToBall(ball)
-    if not pullVectorEnabled or not ball then return end
+-- Function to Apply Pull Vector
+local function applyPullVector()
+    if not pullVectorEnabled then return end
 
-    local player = Players.LocalPlayer
-    local character = player.Character
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    
-    if not hrp then return end
+    -- Check if player is clicking or tapping
+    local isClicking = mouse:IsPointInRegion3(mouse.Hit) or (isMobile and UserInputService.TouchEnabled)
 
-    local direction = (ball.Position - hrp.Position).unit
-    local distance = (ball.Position - hrp.Position).magnitude
-    
-    if distance <= pullRange then
-        pulling = true
-        RunService.Heartbeat:Connect(function()
-            if pulling and ball and hrp then
-                local direction = (ball.Position - hrp.Position).unit
-                hrp.Velocity = direction * pullStrength
-                if (ball.Position - hrp.Position).magnitude < 2 then
-                    pulling = false
-                    hrp.Velocity = Vector3.zero
-                end
-            else
-                hrp.Velocity = Vector3.zero
-                pulling = false
+    if isClicking then
+        for _, part in pairs(Workspace:FindPartsInRegion3(Region3.new(
+            humanoidRootPart.Position - Vector3.new(range, range, range),
+            humanoidRootPart.Position + Vector3.new(range, range, range)
+        ), nil, math.huge)) do
+            if part.Name == "Football" and part:IsA("BasePart") then
+                local direction = (part.Position - humanoidRootPart.Position).unit
+                local distance = (part.Position - humanoidRootPart.Position).magnitude
+
+                -- Apply force to move player towards the ball
+                humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * pullStrength * (1 - (distance / range))
             end
-        end)
-    else
-        hrp.Velocity = Vector3.zero
-        pulling = false
+        end
     end
 end
 
--- UI Elements
+-- Add UI Elements
 tab:Toggle("Enable Pull Vector", false, function(state)
     pullVectorEnabled = state
 end)
 
-tab:Slider("Pull Range", 1, 50, 10, function(value)
-    pullRange = value
+tab:Slider("Range", {
+    Min = 1,
+    Max = 50,
+    Default = 10,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "Range...",
+    Callback = function(value)
+        range = value
+    end
+})
+
+tab:Slider("Pull Strength", {
+    Min = 1,
+    Max = 25,
+    Default = 10,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "Pull Strength...",
+    Callback = function(value)
+        pullStrength = value
+    end
+})
+
+-- Continuously check for pulling
+RunService.Heartbeat:Connect(function()
+    applyPullVector()
 end)
 
-tab:Slider("Pull Strength", 1, 25, 10, function(value)
-    pullStrength = value
-end)
-
--- Click Event to Start Pulling
-game:GetService("UserInputService").InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 and pullVectorEnabled then
-        local player = Players.LocalPlayer
-        local character = player.Character
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        
-        if hrp then
-            local mouse = player:GetMouse()
-            local targetPos = mouse.Hit.Position
-            local nearestBall = nil
-            local minDist = pullRange
-
-            for _, obj in pairs(Workspace:GetChildren()) do
-                if obj:IsA("BasePart") and obj.Name == "Football" then
-                    local dist = (obj.Position - hrp.Position).magnitude
-                    if dist < minDist then
-                        minDist = dist
-                        nearestBall = obj
-                    end
-                end
-            end
-            
-            if nearestBall then
-                targetBall = nearestBall
-                pullPlayerToBall(targetBall)
-            end
+-- Handle mobile input to simulate tap
+if isMobile then
+    UserInputService.TouchTap:Connect(function()
+        if pullVectorEnabled then
+            applyPullVector()
         end
-    end
-end)
-
--- Handle Ball Removal
-Workspace.ChildRemoved:Connect(function(child)
-    if child == targetBall then
-        targetBall = nil
-        pulling = false
-    end
-end)
+    end)
+end
