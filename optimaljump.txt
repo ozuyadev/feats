@@ -1,0 +1,72 @@
+-- Load Vape UI Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")())()
+
+-- Create Main Window using Vape UI Library
+local win = lib:Window("Optimal Jump Location", Color3.fromRGB(255, 255, 255), Enum.KeyCode.RightControl)
+
+-- Create a Tab
+local miscTab = win:Tab("Misc")
+
+-- Initialize Variables
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local OptimalJumpEnabled = false  -- Variable for Optimal Jump Feature
+
+-- Function to Calculate Optimal Jump Location
+local function calculateOptimalJumpLocation(gravity, velocity, position, timeToJump)
+    local jumpHeight = 50  -- Adjust the jump height as needed
+    local g = gravity
+    local t = timeToJump
+
+    -- Calculate where the ball will be after the given time
+    local futurePosition = position + velocity * t + 0.5 * g * t * t
+
+    -- Optimal jump location on the ground
+    local optimalLocation = Vector3.new(futurePosition.X, Workspace.CurrentCamera.CFrame.Position.Y, futurePosition.Z)
+    return optimalLocation
+end
+
+-- Function to Show Optimal Jump Location
+local function showOptimalJumpLocation()
+    if not OptimalJumpEnabled then return end
+
+    -- Create a circle part for visualization
+    local circle = Instance.new("Part")
+    circle.Shape = Enum.PartType.Cylinder
+    circle.Size = Vector3.new(5, 0.1, 5)
+    circle.Color = Color3.fromRGB(255, 255, 255) -- White color
+    circle.Anchored = true
+    circle.CanCollide = false
+    circle.Parent = Workspace
+
+    local eventConnection
+    eventConnection = Workspace.ChildAdded:Connect(function(b)
+        if b.Name == "Football" and b:IsA("BasePart") then
+            task.wait()
+
+            local velocity = b.Velocity
+            local position = b.Position
+
+            -- Calculate optimal jump location
+            local optimalLocation = calculateOptimalJumpLocation(Vector3.new(0, -28, 0), velocity, position, 1.5) -- Adjust time as needed
+
+            -- Update the position of the circle to the calculated optimal jump location
+            circle.Position = optimalLocation
+
+            -- Remove the circle after 5 seconds or when the ball is caught
+            task.delay(5, function()
+                if circle and circle.Parent then
+                    circle:Destroy()
+                end
+            end)
+        end
+    end)
+end
+
+-- Add UI Elements for Optimal Jump Feature
+miscTab:Toggle("Enable Optimal Jump Location", false, function(state)
+    OptimalJumpEnabled = state
+    if OptimalJumpEnabled then
+        showOptimalJumpLocation()
+    end
+end)
