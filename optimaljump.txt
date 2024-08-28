@@ -44,7 +44,7 @@ local function showOptimalJumpLocation()
     circle.Color = predictionColor -- Set to chosen color
     circle.Anchored = true
     circle.CanCollide = false
-    circle.Transparency = 0.5
+    circle.Transparency = 0.5 -- Semi-transparent
     circle.Orientation = Vector3.new(0, 0, 90) -- Flat orientation
     circle.Parent = Workspace
 
@@ -79,7 +79,7 @@ local function showOptimalJumpLocation()
                     updateConnection:Disconnect()
                 end
             end)
-            
+
             -- Remove circle when the ball is caught or disappears
             task.spawn(function()
                 repeat task.wait() until b.Parent ~= workspace
