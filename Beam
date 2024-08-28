@@ -1,11 +1,34 @@
--- Initialize Services
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
+-- Load Vape UI Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
+
+-- Create UI Window
+local win = lib:Window("Football Game Helper", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+
+-- Create "Jump Helper" Tab
+local jumpHelperTab = win:Tab("Jump Helper")
 
 -- Variables
 local OptimalJumpEnabled = false
 local predictionColor = Color3.fromRGB(255, 255, 255)
 local circle -- The visual indicator for the optimal jump location
+
+-- Toggle for Optimal Jump Location
+jumpHelperTab:Toggle("Enable Optimal Jump Location", false, function(t)
+    OptimalJumpEnabled = t
+    if not OptimalJumpEnabled then
+        if circle then
+            circle:Destroy()
+        end
+    end
+end)
+
+-- Color Picker for Optimal Jump Location
+jumpHelperTab:Colorpicker("Jump Location Color", Color3.fromRGB(255, 255, 255), function(c)
+    predictionColor = c
+    if circle then
+        circle.BrickColor = BrickColor.new(predictionColor)
+    end
+end)
 
 -- Function to Simulate Ball Trajectory
 local function beamProjectile(g, v0, x0, t1)
@@ -72,3 +95,13 @@ local function showOptimalJumpLocation()
         end
     end)
 end
+
+-- Function to Start the Optimal Jump Location Feature
+local function startJumpHelper()
+    if OptimalJumpEnabled then
+        showOptimalJumpLocation()
+    end
+end
+
+-- Run the Jump Helper Function Continuously
+RunService.Heartbeat:Connect(startJumpHelper)
