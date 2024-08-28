@@ -1,92 +1,93 @@
 -- Load Vape UI Library
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 
--- Create UI Window
-local win = lib:Window("Football Game Helper", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+-- Create Main Window
+local win = lib:Window("Optimal Jump Location", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
--- Create "Jump Helper" Tab
-local jumpHelperTab = win:Tab("Jump Helper")
+-- Create a New Tab
+local tab = win:Tab("Jump Helper")
 
--- Variables
-local OptimalJumpEnabled = false
-local predictionColor = Color3.fromRGB(255, 255, 255)
-local circle -- The visual indicator for the optimal jump location
+-- Initialize Services
+local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 
--- Toggle for Optimal Jump Location
-jumpHelperTab:Toggle("Enable Optimal Jump Location", false, function(t)
-    OptimalJumpEnabled = t
-    if not OptimalJumpEnabled then
-        if circle then
-            circle:Destroy()
-        end
-    end
-end)
+-- Initialize Variables
+local OptimalJumpEnabled = false -- Toggle Variable for Optimal Jump Feature
+local circle -- BillboardGui for visualizing the jump location
+local predictionColor = Color3.fromRGB(255, 255, 255) -- Default circle color
+local eventConnection
 
--- Color Picker for Optimal Jump Location
-jumpHelperTab:Colorpicker("Jump Location Color", Color3.fromRGB(255, 255, 255), function(c)
-    predictionColor = c
-    if circle then
-        circle.BrickColor = BrickColor.new(predictionColor)
-    end
-end)
-
--- Function to Simulate Ball Trajectory
+-- Function to Calculate Ball Landing Prediction using a Projectile Model
 local function beamProjectile(g, v0, x0, t1)
     local c = 0.5 * 0.5 * 0.5
     local p3 = 0.5 * g * t1 * t1 + v0 * t1 + x0
     local p2 = p3 - (g * t1 * t1 + v0 * t1) / 3
     local p1 = (c * g * t1 * t1 + 0.5 * v0 * t1 + x0 - c * (x0 + p3)) / (3 * c) - p2
 
-    return p3
+    return p3 -- Return the end position as the predicted landing point
 end
 
 -- Function to Show Optimal Jump Location
 local function showOptimalJumpLocation()
     if not OptimalJumpEnabled then return end
 
-    -- Remove existing visual indicator
+    -- Remove existing BillboardGui if present
     if circle then
         circle:Destroy()
     end
 
-    -- Create a Part for visualization
-    circle = Instance.new("Part")
-    circle.Size = Vector3.new(5, 1, 5) -- Adjust size as needed
-    circle.Anchored = true
-    circle.CanCollide = false
-    circle.Transparency = 0.5
-    circle.BrickColor = BrickColor.new(predictionColor)
-    circle.Material = Enum.Material.SmoothPlastic
-    circle.Parent = Workspace
+    -- Create a BillboardGui for visualization
+    circle = Instance.new("BillboardGui")
+    circle.Size = UDim2.new(0, 50, 0, 50) -- Size of the billboard
+    circle.Adornee = Instance.new("Part") -- Temporary Part for Adornee
+    circle.Adornee.Size = Vector3.new(1, 1, 1) -- Small part to attach BillboardGui
+    circle.Adornee.Anchored = true
+    circle.Adornee.CanCollide = false
+    circle.Adornee.Transparency = 1 -- Invisible part
+    circle.Parent = Workspace.CurrentCamera
 
-    -- Connect to event when ball is added
-    workspace.ChildAdded:Connect(function(b)
+    -- Create a Frame inside the BillboardGui for the circle
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundColor3 = predictionColor -- Set to chosen color
+    frame.BackgroundTransparency = 0.5 -- Semi-transparent
+    frame.BorderSizePixel = 0
+    frame.Parent = circle
+
+    -- Connect to the event when the ball is added
+    eventConnection = workspace.ChildAdded:Connect(function(b)
         if b.Name == "Football" and b:IsA("BasePart") then
             task.wait()
+
             local velocity = b.Velocity
             local position = b.Position
 
-            -- Calculate the optimal jump location
-            local predictedEndPosition = beamProjectile(Vector3.new(0, -28, 0), velocity, position, 10)
+            -- Calculate optimal jump location using invisible simulation
+            local predictedEndPosition = beamProjectile(Vector3.new(0, -28, 0), velocity, position, 10) -- Adjust time as needed
+
+            -- Optimal jump location on the ground
             local optimalLocation = Vector3.new(predictedEndPosition.X, Workspace.CurrentCamera.CFrame.Position.Y, predictedEndPosition.Z)
 
-            -- Update the Part's position
-            circle.Position = optimalLocation
+            -- Update the BillboardGui's position to the calculated optimal jump location
+            circle.Adornee.Position = optimalLocation
 
-            -- Continuously update position while the ball is moving
+            -- Continuously update the BillboardGui's position while the ball is moving
             local updateConnection
             updateConnection = RunService.Heartbeat:Connect(function()
                 if b.Velocity.Magnitude > 0.1 then
+                    -- Recalculate the location dynamically based on the current ball state
                     predictedEndPosition = beamProjectile(Vector3.new(0, -28, 0), b.Velocity, b.Position, 10)
                     optimalLocation = Vector3.new(predictedEndPosition.X, Workspace.CurrentCamera.CFrame.Position.Y, predictedEndPosition.Z)
-                    circle.Position = optimalLocation
+                    circle.Adornee.Position = optimalLocation
                 else
+                    -- Ball is no longer moving; remove the BillboardGui
                     circle:Destroy()
                     updateConnection:Disconnect()
                 end
             end)
 
-            -- Remove the Part when the ball is caught or disappears
+            -- Remove the BillboardGui when the ball is caught or disappears
             task.spawn(function()
                 repeat task.wait() until b.Parent ~= workspace
                 circle:Destroy()
@@ -96,12 +97,22 @@ local function showOptimalJumpLocation()
     end)
 end
 
--- Function to Start the Optimal Jump Location Feature
-local function startJumpHelper()
+-- Add UI Elements
+tab:Toggle("Enable Optimal Jump Location", false, function(state)
+    OptimalJumpEnabled = state
+
     if OptimalJumpEnabled then
         showOptimalJumpLocation()
+    elseif circle then
+        circle:Destroy()
     end
-end
+end)
 
--- Run the Jump Helper Function Continuously
-RunService.Heartbeat:Connect(startJumpHelper)
+-- Optional: Add a color picker to change the circle's color
+tab:Colorpicker("Circle Color", predictionColor, function(newColor)
+    predictionColor = newColor
+    if circle and circle:FindFirstChildOfClass("Frame") then
+        circle:FindFirstChildOfClass("Frame").BackgroundColor3 = newColor
+    end
+end)
+
