@@ -1,20 +1,21 @@
 -- Load Vape UI Library
-local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt")())()
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 
--- Create Main Window using Vape UI Library
-local win = lib:Window("Optimal Jump Location", Color3.fromRGB(255, 255, 255), Enum.KeyCode.RightControl)
+-- Create Main Window
+local win = lib:Window("Optimal Jump Location", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
--- Create a Tab
-local miscTab = win:Tab("Misc")
+-- Create a New Tab
+local tab = win:Tab("Jump Helper")
 
 -- Initialize Variables
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
-local OptimalJumpEnabled = false  -- Variable for Optimal Jump Feature
+local Players = game:GetService("Players")
+local OptimalJumpEnabled = false  -- Toggle Variable for Optimal Jump Feature
+local circle
 
 -- Function to Calculate Optimal Jump Location
 local function calculateOptimalJumpLocation(gravity, velocity, position, timeToJump)
-    local jumpHeight = 50  -- Adjust the jump height as needed
     local g = gravity
     local t = timeToJump
 
@@ -30,8 +31,13 @@ end
 local function showOptimalJumpLocation()
     if not OptimalJumpEnabled then return end
 
+    -- If the circle already exists, remove it
+    if circle then
+        circle:Destroy()
+    end
+
     -- Create a circle part for visualization
-    local circle = Instance.new("Part")
+    circle = Instance.new("Part")
     circle.Shape = Enum.PartType.Cylinder
     circle.Size = Vector3.new(5, 0.1, 5)
     circle.Color = Color3.fromRGB(255, 255, 255) -- White color
@@ -39,8 +45,8 @@ local function showOptimalJumpLocation()
     circle.CanCollide = false
     circle.Parent = Workspace
 
-    local eventConnection
-    eventConnection = Workspace.ChildAdded:Connect(function(b)
+    -- Connect to the event when the ball is added
+    Workspace.ChildAdded:Connect(function(b)
         if b.Name == "Football" and b:IsA("BasePart") then
             task.wait()
 
@@ -63,10 +69,20 @@ local function showOptimalJumpLocation()
     end)
 end
 
--- Add UI Elements for Optimal Jump Feature
-miscTab:Toggle("Enable Optimal Jump Location", false, function(state)
+-- Add UI Elements
+tab:Toggle("Enable Optimal Jump Location", false, function(state)
     OptimalJumpEnabled = state
+
     if OptimalJumpEnabled then
         showOptimalJumpLocation()
+    elseif circle then
+        circle:Destroy()
+    end
+end)
+
+-- Optional: Add a color picker to change the circle's color
+tab:Colorpicker("Circle Color", Color3.fromRGB(255, 255, 255), function(newColor)
+    if circle then
+        circle.Color = newColor
     end
 end)
