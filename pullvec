@@ -2,7 +2,7 @@
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 
 -- Create Main Window
-local win = lib:Window("Pull Vector Feature", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("Pull Vector", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- Create a New Tab
 local tab = win:Tab("Pull Vector")
@@ -10,70 +10,97 @@ local tab = win:Tab("Pull Vector")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 
 -- Initialize Variables
 local pullVectorEnabled = false
-local range = 10
-local pullStrength = 5000 -- Default strength
+local pullRange = 10
+local pullStrength = 10
+local pulling = false
+local targetBall = nil
 
--- Function to Apply Pull Vector Force
-local function applyPullVector()
-    while pullVectorEnabled do
-        for _, child in ipairs(Workspace:GetChildren()) do
-            if child.Name == "Football" and child:IsA("BasePart") then
-                local player = Players.LocalPlayer
-                local character = player.Character or player.CharacterAdded:Wait()
-                local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+-- Function to Pull Player to Ball
+local function pullPlayerToBall(ball)
+    if not pullVectorEnabled or not ball then return end
 
-                if humanoidRootPart then
-                    local direction = (child.Position - humanoidRootPart.Position).unit
-                    local distance = (child.Position - humanoidRootPart.Position).magnitude
+    local player = Players.LocalPlayer
+    local character = player.Character
+    local hrp = character:FindFirstChild("HumanoidRootPart")
+    
+    if not hrp then return end
 
-                    if distance <= range then
-                        local forceMagnitude = (range - distance) * pullStrength
-                        local force = direction * forceMagnitude
-
-                        -- Create or update BodyVelocity
-                        local bodyVelocity = humanoidRootPart:FindFirstChildOfClass("BodyVelocity")
-                        if not bodyVelocity then
-                            bodyVelocity = Instance.new("BodyVelocity")
-                            bodyVelocity.Name = "PullVectorBodyVelocity"
-                            bodyVelocity.Parent = humanoidRootPart
-                        end
-
-                        bodyVelocity.Velocity = force
-                        bodyVelocity.MaxForce = Vector3.new(4000, 4000, 4000) -- High max force to ensure effect
-                    end
+    local direction = (ball.Position - hrp.Position).unit
+    local distance = (ball.Position - hrp.Position).magnitude
+    
+    if distance <= pullRange then
+        pulling = true
+        RunService.Heartbeat:Connect(function()
+            if pulling and ball and hrp then
+                local direction = (ball.Position - hrp.Position).unit
+                hrp.Velocity = direction * pullStrength
+                if (ball.Position - hrp.Position).magnitude < 2 then
+                    pulling = false
+                    hrp.Velocity = Vector3.zero
                 end
+            else
+                hrp.Velocity = Vector3.zero
+                pulling = false
             end
-        end
-        wait(0.1) -- Check periodically
+        end)
+    else
+        hrp.Velocity = Vector3.zero
+        pulling = false
     end
 end
 
 -- UI Elements
 tab:Toggle("Enable Pull Vector", false, function(state)
     pullVectorEnabled = state
-    if pullVectorEnabled then
-        applyPullVector()
-    else
-        -- Remove BodyVelocity if Pull Vector is disabled
+end)
+
+tab:Slider("Pull Range", 1, 50, 10, function(value)
+    pullRange = value
+end)
+
+tab:Slider("Pull Strength", 1, 25, 10, function(value)
+    pullStrength = value
+end)
+
+-- Click Event to Start Pulling
+game:GetService("UserInputService").InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 and pullVectorEnabled then
         local player = Players.LocalPlayer
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        if humanoidRootPart then
-            local bodyVelocity = humanoidRootPart:FindFirstChild("PullVectorBodyVelocity")
-            if bodyVelocity then
-                bodyVelocity:Destroy()
+        local character = player.Character
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        
+        if hrp then
+            local mouse = player:GetMouse()
+            local targetPos = mouse.Hit.Position
+            local nearestBall = nil
+            local minDist = pullRange
+
+            for _, obj in pairs(Workspace:GetChildren()) do
+                if obj:IsA("BasePart") and obj.Name == "Football" then
+                    local dist = (obj.Position - hrp.Position).magnitude
+                    if dist < minDist then
+                        minDist = dist
+                        nearestBall = obj
+                    end
+                end
+            end
+            
+            if nearestBall then
+                targetBall = nearestBall
+                pullPlayerToBall(targetBall)
             end
         end
     end
 end)
 
-tab:Slider("Range", 0, 25, 10, function(value)
-    range = value
-end)
-
-tab:Slider("Pull Strength", 1000, 10000, 5000, function(value)
-    pullStrength = value
+-- Handle Ball Removal
+Workspace.ChildRemoved:Connect(function(child)
+    if child == targetBall then
+        targetBall = nil
+        pulling = false
+    end
 end)
