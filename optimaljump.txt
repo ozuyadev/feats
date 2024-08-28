@@ -7,12 +7,16 @@ local win = lib:Window("Optimal Jump Location", Color3.fromRGB(44, 120, 224), En
 -- Create a New Tab
 local tab = win:Tab("Jump Helper")
 
--- Initialize Variables
+-- Initialize Services
 local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local OptimalJumpEnabled = false  -- Toggle Variable for Optimal Jump Feature
-local circle
+
+-- Initialize Variables
+local OptimalJumpEnabled = false -- Toggle Variable for Optimal Jump Feature
+local dot -- Part representing the optimal jump location
+local predictionColor = Color3.fromRGB(255, 255, 255) -- Default dot color
+local eventConnection
 
 -- Function to Calculate Optimal Jump Location
 local function calculateOptimalJumpLocation(gravity, velocity, position, timeToJump)
@@ -31,22 +35,23 @@ end
 local function showOptimalJumpLocation()
     if not OptimalJumpEnabled then return end
 
-    -- If the circle already exists, remove it
-    if circle then
-        circle:Destroy()
+    -- If the dot already exists, remove it
+    if dot then
+        dot:Destroy()
     end
 
-    -- Create a circle part for visualization
-    circle = Instance.new("Part")
-    circle.Shape = Enum.PartType.Cylinder
-    circle.Size = Vector3.new(5, 0.1, 5)
-    circle.Color = Color3.fromRGB(255, 255, 255) -- White color
-    circle.Anchored = true
-    circle.CanCollide = false
-    circle.Parent = Workspace
+    -- Create a dot part for visualization
+    dot = Instance.new("Part")
+    dot.Shape = Enum.PartType.Ball
+    dot.Size = Vector3.new(2, 2, 2) -- Small dot
+    dot.Color = predictionColor -- Set to chosen color
+    dot.Anchored = true
+    dot.CanCollide = false
+    dot.Transparency = 0.5
+    dot.Parent = Workspace
 
     -- Connect to the event when the ball is added
-    Workspace.ChildAdded:Connect(function(b)
+    eventConnection = workspace.ChildAdded:Connect(function(b)
         if b.Name == "Football" and b:IsA("BasePart") then
             task.wait()
 
@@ -56,14 +61,28 @@ local function showOptimalJumpLocation()
             -- Calculate optimal jump location
             local optimalLocation = calculateOptimalJumpLocation(Vector3.new(0, -28, 0), velocity, position, 1.5) -- Adjust time as needed
 
-            -- Update the position of the circle to the calculated optimal jump location
-            circle.Position = optimalLocation
+            -- Update the position of the dot to the calculated optimal jump location
+            dot.Position = optimalLocation
 
-            -- Remove the circle after 5 seconds or when the ball is caught
-            task.delay(5, function()
-                if circle and circle.Parent then
-                    circle:Destroy()
+            -- Continuously update the dot's position while the ball is moving
+            local updateConnection
+            updateConnection = RunService.Heartbeat:Connect(function()
+                if b.Velocity.Magnitude > 0.1 then
+                    -- Recalculate the location dynamically based on the current ball state
+                    optimalLocation = calculateOptimalJumpLocation(Vector3.new(0, -28, 0), b.Velocity, b.Position, 1.5)
+                    dot.Position = optimalLocation
+                else
+                    -- Ball is no longer moving; remove the dot
+                    dot:Destroy()
+                    updateConnection:Disconnect()
                 end
+            end)
+            
+            -- Remove dot when the ball is caught or disappears
+            task.spawn(function()
+                repeat task.wait() until b.Parent ~= workspace
+                dot:Destroy()
+                updateConnection:Disconnect()
             end)
         end
     end)
@@ -75,14 +94,15 @@ tab:Toggle("Enable Optimal Jump Location", false, function(state)
 
     if OptimalJumpEnabled then
         showOptimalJumpLocation()
-    elseif circle then
-        circle:Destroy()
+    elseif dot then
+        dot:Destroy()
     end
 end)
 
--- Optional: Add a color picker to change the circle's color
-tab:Colorpicker("Circle Color", Color3.fromRGB(255, 255, 255), function(newColor)
-    if circle then
-        circle.Color = newColor
+-- Optional: Add a color picker to change the dot's color
+tab:Colorpicker("Dot Color", predictionColor, function(newColor)
+    predictionColor = newColor
+    if dot then
+        dot.Color = newColor
     end
 end)
