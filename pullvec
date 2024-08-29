@@ -2,7 +2,7 @@
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 
 -- Create Main Window
-local win = lib:Window("Pull Vector Feature", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("Pull Vector", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- Create a New Tab
 local tab = win:Tab("Pull Vector")
@@ -10,61 +10,76 @@ local tab = win:Tab("Pull Vector")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 -- Initialize Variables
-local pullVectorEnabled = false -- Toggle Variable for Pull Vector Feature
-local pullRange = 10 -- Default range
-local pullStrength = 10 -- Default pull strength
+local pullVectorEnabled = false
+local range = 10
+local pullStrength = 10
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+local isMobile = UserInputService.TouchEnabled
 
 -- Function to Apply Pull Vector
 local function applyPullVector()
-    local player = Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
+    if not pullVectorEnabled then return end
 
-    RunService.Heartbeat:Connect(function()
-        if not pullVectorEnabled then return end
+    -- Get mouse position or touch input
+    local mousePosition = (isMobile and UserInputService:GetTouch(1)) and UserInputService:GetTouch(1).Position or mouse.Hit.Position
 
-        local ball = Workspace:FindFirstChild("Football")
-        if ball and ball:IsA("BasePart") then
-            local ballPosition = ball.Position
-            local playerPosition = humanoidRootPart.Position
-            local distance = (ballPosition - playerPosition).magnitude
-            
-            if distance <= pullRange then
-                -- Calculate the direction and apply force
-                local direction = (ballPosition - playerPosition).unit
-                humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * pullStrength
-            end
-        end
-    end)
+    -- Check if mouse position is within range
+    local distance = (mousePosition - humanoidRootPart.Position).magnitude
+    if distance <= range then
+        local direction = (mousePosition - humanoidRootPart.Position).unit
+
+        -- Apply force to move player towards the target
+        humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * pullStrength
+    end
 end
 
 -- Add UI Elements
 tab:Toggle("Enable Pull Vector", false, function(state)
     pullVectorEnabled = state
+end)
+
+tab:Slider("Range", {
+    Min = 1,
+    Max = 50,
+    Default = 10,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "Range...",
+    Callback = function(value)
+        range = value
+    end
+})
+
+tab:Slider("Pull Strength", {
+    Min = 1,
+    Max = 25,
+    Default = 10,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "Pull Strength...",
+    Callback = function(value)
+        pullStrength = value
+    end
+})
+
+-- Continuously check for pulling
+RunService.Heartbeat:Connect(function()
     if pullVectorEnabled then
         applyPullVector()
     end
 end)
 
-tab:Slider("Pull Range", 1, 50, 10, function(value)
-    pullRange = value
-end)
-
-tab:Slider("Pull Strength", 1, 25, 10, function(value)
-    pullStrength = value
-end)
-
--- Mobile Compatibility: Simulate a tap to activate the Pull Vector
-local UserInputService = game:GetService("UserInputService")
-UserInputService.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch then
+-- Handle mobile input to simulate touch
+if isMobile then
+    UserInputService.TouchTap:Connect(function()
         if pullVectorEnabled then
             applyPullVector()
         end
-    end
-end)
+    end)
+end
