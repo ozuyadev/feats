@@ -80,4 +80,8 @@ if isMobile then
 end
 
 -- Continuously apply magnets effect
-RunService.Heartbeat:Connect(applyMagnets)
+RunService.Heartbeat:Connect(function()
+    if magson then
+        applyMagnets()
+    end
+end)
