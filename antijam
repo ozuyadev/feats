@@ -2,7 +2,7 @@
 local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
 
 -- Create Main Window
-local win = lib:Window("AntiJam Feature", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+local win = lib:Window("Anti-Jam", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
 
 -- Create a New Tab
 local tab = win:Tab("Anti-Jam")
@@ -10,31 +10,35 @@ local tab = win:Tab("Anti-Jam")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- Initialize Variables
 local antiJamEnabled = false
-local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-local isMobile = UserInputService.TouchEnabled
+local phaseDistance = 2 -- Adjust this value to control how much the player can phase through
 
 -- Function to Apply Anti-Jam
 local function applyAntiJam()
     if not antiJamEnabled then return end
 
-    -- Check for collision with other players' rigs
-    for _, part in pairs(Workspace:FindPartsInRegion3(Region3.new(
-        humanoidRootPart.Position - Vector3.new(5, 5, 5), -- Adjust size as needed
-        humanoidRootPart.Position + Vector3.new(5, 5, 5)
-    ), nil, math.huge)) do
-        if part.Name == "HumanoidRootPart" and part.Parent and part.Parent ~= character then
-            local distance = (part.Position - humanoidRootPart.Position).magnitude
-            if distance < 5 then -- Adjust distance as needed
-                -- Apply force to push the player away from the rig
-                local direction = (humanoidRootPart.Position - part.Position).unit
-                humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * 10 -- Adjust force as needed
+    local player = Players.LocalPlayer
+    local character = player.Character
+    if not character then return end
+
+    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+    if not humanoidRootPart then return end
+
+    -- Check for nearby players
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= player and otherPlayer.Character then
+            local otherHumanoidRootPart = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if otherHumanoidRootPart then
+                local distance = (humanoidRootPart.Position - otherHumanoidRootPart.Position).magnitude
+                if distance < phaseDistance then
+                    -- Apply a slight push to partially phase through the other player
+                    local direction = (humanoidRootPart.Position - otherHumanoidRootPart.Position).unit
+                    humanoidRootPart.CFrame = humanoidRootPart.CFrame + direction * (phaseDistance - distance)
+                end
             end
         end
     end
@@ -45,13 +49,25 @@ tab:Toggle("Enable Anti-Jam", false, function(state)
     antiJamEnabled = state
 end)
 
--- Continuously check for anti-jam effect
+tab:Slider("Phase Distance", {
+    Min = 1,
+    Max = 10,
+    Default = 2,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 0.5,
+    ValueName = "Phase Distance...",
+    Callback = function(value)
+        phaseDistance = value
+    end
+})
+
+-- Continuously apply anti-jam effect
 RunService.Heartbeat:Connect(function()
     applyAntiJam()
 end)
 
--- Handle mobile input to simulate tap
-if isMobile then
+-- Handle mobile input to simulate tap if needed
+if UserInputService.TouchEnabled then
     UserInputService.TouchTap:Connect(function()
         if antiJamEnabled then
             applyAntiJam()
