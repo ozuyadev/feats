@@ -13,75 +13,70 @@ local section = tab:Section("Magnets")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
 -- Initialize Variables
-local magson = false
-local range = 5 -- Default range
 local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-local isMobile = UserInputService.TouchEnabled
+local magson = false
+local range = 5 -- Default value
+local delayon = false
+local delay = 0.1
 
--- Function to Apply Magnets Effect
-local function applyMagnets()
+-- Function to Handle Magnets Effect
+local function handleMagnets()
     if not magson then return end
 
-    for _, child in pairs(Workspace:FindPartsInRegion3(Region3.new(
-        humanoidRootPart.Position - Vector3.new(range, range, range),
-        humanoidRootPart.Position + Vector3.new(range, range, range)
-    ), nil, math.huge)) do
+    Workspace.ChildAdded:Connect(function(child)
         if child.Name == "Football" and child:IsA("BasePart") then
-            child.Size = Vector3.new(range, range, range)
-            child.CanCollide = false
-        end
-    end
-end
-
--- Add UI Elements
-tab:Toggle("Magnets", false, function(state)
-    magson = state
-    if magson then
-        applyMagnets()
-    else
-        -- Reset size if magnets are disabled
-        for _, child in pairs(Workspace:GetChildren()) do
-            if child.Name == "Football" and child:IsA("BasePart") then
+            if magson then
+                if delayon then
+                    wait(delay)
+                end
+                child.Size = Vector3.new(range, range, range)
+                child.CanCollide = false
+            else
                 child.Size = Vector3.new(0.85, 1.2, 0.85)
                 child.CanCollide = false
             end
         end
-    end
-end)
-
-tab:Slider("Range", {
-    Min = 1, -- Minimum value for range
-    Max = 50, -- Maximum value for range
-    Default = 5, -- Default value
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 1, -- Slider increment value
-    ValueName = "Range",
-    Callback = function(value)
-        range = value
-        if magson then
-            applyMagnets()
-        end
-    end
-})
-
--- Mobile input handling
-if isMobile then
-    UserInputService.TouchTap:Connect(function()
-        if magson then
-            applyMagnets()
-        end
     end)
 end
 
--- Continuously apply magnets effect
-RunService.Heartbeat:Connect(function()
-    if magson then
-        applyMagnets()
-    end
+-- Add UI Elements
+tab:Toggle("Magnets", false, function(value)
+    magson = value
+    handleMagnets()
 end)
+
+tab:Slider("Range", {
+    Min = 0,
+    Max = 25,
+    Default = 5,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 0.1,
+    ValueName = "Range...",
+    Callback = function(value)
+        range = value
+        handleMagnets()
+    end
+})
+
+tab:Toggle("MagnetsDelay", false, function(value)
+    delayon = value
+end)
+
+tab:Slider("Delay", {
+    Min = 0,
+    Max = 1,
+    Default = 0,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 0.1,
+    ValueName = "",
+    Callback = function(value)
+        delay = value
+    end
+})
+
+-- Initial Call to Handle Magnets
+handleMagnets()
