@@ -14,6 +14,7 @@ local section = tab:Section("Magnets")
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- Initialize Variables
 local magson = false
@@ -26,7 +27,7 @@ local isMobile = UserInputService.TouchEnabled
 -- Function to Apply Magnets Effect
 local function applyMagnets()
     if not magson then return end
-    
+
     for _, child in pairs(Workspace:FindPartsInRegion3(Region3.new(
         humanoidRootPart.Position - Vector3.new(range, range, range),
         humanoidRootPart.Position + Vector3.new(range, range, range)
@@ -55,12 +56,12 @@ tab:Toggle("Magnets", false, function(state)
 end)
 
 tab:Slider("Range", {
-    Min = 0,
-    Max = 25,
-    Default = 5,
+    Min = 1, -- Minimum value for range
+    Max = 50, -- Maximum value for range
+    Default = 5, -- Default value
     Color = Color3.fromRGB(255, 255, 255),
-    Increment = 0.1,
-    ValueName = "Range...",
+    Increment = 1, -- Slider increment value
+    ValueName = "Range",
     Callback = function(value)
         range = value
         if magson then
@@ -79,4 +80,4 @@ if isMobile then
 end
 
 -- Continuously apply magnets effect
-game:GetService("RunService").Heartbeat:Connect(applyMagnets)
+RunService.Heartbeat:Connect(applyMagnets)
