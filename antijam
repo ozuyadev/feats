@@ -17,28 +17,41 @@ local antiJamEnabled = false
 local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+local ball = nil
 
--- Function to Apply Anti-Jam
-local function applyAntiJam()
+-- Function to Check Ball Proximity and Apply Anti-Jam
+local function checkBallProximity()
     if not antiJamEnabled then return end
 
-    -- Iterate over all characters in the workspace
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player then
-            local otherCharacter = otherPlayer.Character
-            if otherCharacter and otherCharacter:FindFirstChild("HumanoidRootPart") then
-                local otherHumanoidRootPart = otherCharacter:FindFirstChild("HumanoidRootPart")
-                
-                -- Check if the player's character is close to another player's character
-                local distance = (humanoidRootPart.Position - otherHumanoidRootPart.Position).magnitude
-                if distance < 5 then  -- Adjust this distance as needed
-                    -- Apply a small part of the player's character to phase through the other player
-                    humanoidRootPart.CanCollide = false
-                    task.wait(0.1)
-                    humanoidRootPart.CanCollide = true
-                end
-            end
+    -- Find the ball in the workspace
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if obj.Name == "Football" and obj:IsA("BasePart") then
+            ball = obj
+            break
         end
+    end
+
+    if ball then
+        -- Check distance between player and ball
+        local distance = (humanoidRootPart.Position - ball.Position).magnitude
+        if distance < 5 then  -- Adjust this distance as needed
+            -- Temporarily disable collision to allow partial phasing
+            humanoidRootPart.CanCollide = false
+        else
+            humanoidRootPart.CanCollide = true
+        end
+    end
+end
+
+-- Function to Monitor Ball Catching Status
+local function monitorBallStatus()
+    if not antiJamEnabled then return end
+
+    -- Check if the ball has been caught
+    local ballCaught = not ball or ball.Parent == nil  -- Ball is caught or no longer exists
+
+    if ballCaught then
+        humanoidRootPart.CanCollide = true
     end
 end
 
@@ -47,8 +60,9 @@ tab:Toggle("Enable Anti-Jam", false, function(state)
     antiJamEnabled = state
 end)
 
--- Continuously apply anti-jam while enabled
+-- Continuously check for ball proximity and catching status
 RunService.Heartbeat:Connect(function()
-    applyAntiJam()
+    checkBallProximity()
+    monitorBallStatus()
 end)
 
