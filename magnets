@@ -1,0 +1,82 @@
+-- Load Vape UI Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
+
+-- Create Main Window
+local win = lib:Window("Magnets", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+
+-- Create a New Tab
+local tab = win:Tab("Catching")
+
+-- Add Section for Magnets
+local section = tab:Section("Magnets")
+
+-- Initialize Services
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+-- Initialize Variables
+local magson = false
+local range = 5 -- Default range
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+local isMobile = UserInputService.TouchEnabled
+
+-- Function to Apply Magnets Effect
+local function applyMagnets()
+    if not magson then return end
+    
+    for _, child in pairs(Workspace:FindPartsInRegion3(Region3.new(
+        humanoidRootPart.Position - Vector3.new(range, range, range),
+        humanoidRootPart.Position + Vector3.new(range, range, range)
+    ), nil, math.huge)) do
+        if child.Name == "Football" and child:IsA("BasePart") then
+            child.Size = Vector3.new(range, range, range)
+            child.CanCollide = false
+        end
+    end
+end
+
+-- Add UI Elements
+tab:Toggle("Magnets", false, function(state)
+    magson = state
+    if magson then
+        applyMagnets()
+    else
+        -- Reset size if magnets are disabled
+        for _, child in pairs(Workspace:GetChildren()) do
+            if child.Name == "Football" and child:IsA("BasePart") then
+                child.Size = Vector3.new(0.85, 1.2, 0.85)
+                child.CanCollide = false
+            end
+        end
+    end
+end)
+
+tab:Slider("Range", {
+    Min = 0,
+    Max = 25,
+    Default = 5,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 0.1,
+    ValueName = "Range...",
+    Callback = function(value)
+        range = value
+        if magson then
+            applyMagnets()
+        end
+    end
+})
+
+-- Mobile input handling
+if isMobile then
+    UserInputService.TouchTap:Connect(function()
+        if magson then
+            applyMagnets()
+        end
+    end)
+end
+
+-- Continuously apply magnets effect
+game:GetService("RunService").Heartbeat:Connect(applyMagnets)
