@@ -1,0 +1,60 @@
+-- Load Vape UI Library
+local lib = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/UI-Libs/main/Vape.txt"))()
+
+-- Create Main Window
+local win = lib:Window("AntiJam Feature", Color3.fromRGB(44, 120, 224), Enum.KeyCode.RightControl)
+
+-- Create a New Tab
+local tab = win:Tab("Anti-Jam")
+
+-- Initialize Services
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Initialize Variables
+local antiJamEnabled = false
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+local isMobile = UserInputService.TouchEnabled
+
+-- Function to Apply Anti-Jam
+local function applyAntiJam()
+    if not antiJamEnabled then return end
+
+    -- Check for collision with other players' rigs
+    for _, part in pairs(Workspace:FindPartsInRegion3(Region3.new(
+        humanoidRootPart.Position - Vector3.new(5, 5, 5), -- Adjust size as needed
+        humanoidRootPart.Position + Vector3.new(5, 5, 5)
+    ), nil, math.huge)) do
+        if part.Name == "HumanoidRootPart" and part.Parent and part.Parent ~= character then
+            local distance = (part.Position - humanoidRootPart.Position).magnitude
+            if distance < 5 then -- Adjust distance as needed
+                -- Apply force to push the player away from the rig
+                local direction = (humanoidRootPart.Position - part.Position).unit
+                humanoidRootPart.Velocity = humanoidRootPart.Velocity + direction * 10 -- Adjust force as needed
+            end
+        end
+    end
+end
+
+-- Add UI Elements
+tab:Toggle("Enable Anti-Jam", false, function(state)
+    antiJamEnabled = state
+end)
+
+-- Continuously check for anti-jam effect
+RunService.Heartbeat:Connect(function()
+    applyAntiJam()
+end)
+
+-- Handle mobile input to simulate tap
+if isMobile then
+    UserInputService.TouchTap:Connect(function()
+        if antiJamEnabled then
+            applyAntiJam()
+        end
+    end)
+end
