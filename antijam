@@ -10,34 +10,32 @@ local tab = win:Tab("Anti-Jam")
 -- Initialize Services
 local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 -- Initialize Variables
 local antiJamEnabled = false
-local phaseDistance = 2 -- Adjust this value to control how much the player can phase through
+local player = Players.LocalPlayer or Players.PlayerAdded:Wait()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
 
 -- Function to Apply Anti-Jam
 local function applyAntiJam()
     if not antiJamEnabled then return end
 
-    local player = Players.LocalPlayer
-    local character = player.Character
-    if not character then return end
-
-    local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-    if not humanoidRootPart then return end
-
-    -- Check for nearby players
+    -- Iterate over all characters in the workspace
     for _, otherPlayer in pairs(Players:GetPlayers()) do
-        if otherPlayer ~= player and otherPlayer.Character then
-            local otherHumanoidRootPart = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if otherHumanoidRootPart then
+        if otherPlayer ~= player then
+            local otherCharacter = otherPlayer.Character
+            if otherCharacter and otherCharacter:FindFirstChild("HumanoidRootPart") then
+                local otherHumanoidRootPart = otherCharacter:FindFirstChild("HumanoidRootPart")
+                
+                -- Check if the player's character is close to another player's character
                 local distance = (humanoidRootPart.Position - otherHumanoidRootPart.Position).magnitude
-                if distance < phaseDistance then
-                    -- Apply a slight push to partially phase through the other player
-                    local direction = (humanoidRootPart.Position - otherHumanoidRootPart.Position).unit
-                    humanoidRootPart.CFrame = humanoidRootPart.CFrame + direction * (phaseDistance - distance)
+                if distance < 5 then  -- Adjust this distance as needed
+                    -- Apply a small part of the player's character to phase through the other player
+                    humanoidRootPart.CanCollide = false
+                    task.wait(0.1)
+                    humanoidRootPart.CanCollide = true
                 end
             end
         end
@@ -49,29 +47,8 @@ tab:Toggle("Enable Anti-Jam", false, function(state)
     antiJamEnabled = state
 end)
 
-tab:Slider("Phase Distance", {
-    Min = 1,
-    Max = 10,
-    Default = 2,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 0.5,
-    ValueName = "Phase Distance...",
-    Callback = function(value)
-        phaseDistance = value
-    end
-})
-
--- Continuously apply anti-jam effect
+-- Continuously apply anti-jam while enabled
 RunService.Heartbeat:Connect(function()
     applyAntiJam()
 end)
-
--- Handle mobile input to simulate tap if needed
-if UserInputService.TouchEnabled then
-    UserInputService.TouchTap:Connect(function()
-        if antiJamEnabled then
-            applyAntiJam()
-        end
-    end)
-end
 
